@@ -1,22 +1,25 @@
 {
-    "manifest_version": 3,
-    "name": "CORS-Free Downloader with Progress",
-    "version": "1.1",
-    "description": "Download files into folders with progress tracking.",
-    "permissions": [
-      "downloads",
-      "activeTab",
-      "scripting",
-      "notifications"
-    ],
-    "background": {
-      "service_worker": "background.js"
-    },
-    "host_permissions": [
-      "<all_urls>"
-    ],
-    "action": {
-      "default_popup": "popup.html"
-    }
+  "manifest_version": 3,
+  "name": "Efinder Download Manager",
+  "version": "1.1",
+  "description": "Download files into folders with progress tracking.",
+  "permissions": [
+    "downloads",
+    "activeTab",
+    "scripting",
+    "notifications"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "image.png"
+  },
+  "icons": {
+    "128": "image.png"
   }
-  
+}
