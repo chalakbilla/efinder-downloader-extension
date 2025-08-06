@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Extension</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 12px;
+            min-width: 200px;
+            width: 300px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-radius: 12px; /* Increased for more noticeable rounding within popup */
+            overflow: hidden; /* Ensures content respects rounded corners */
+        }
+        button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px; /* Button lowered slightly */
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+        #status {
+            font-size: 12px;
+            color: #4b5563;
+            text-align: center;
+        }
+        footer {
+            margin-top: 8px;
+            text-align: center;
+        }
+        footer a {
+            font-size: 12px;
+            color: #6b7280;
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        footer a:hover {
+            color: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <button id="downloadBtn">Download All Files</button>
+    <div id="status"></div>
+    <footer>
+        <a href="https://ankit-raj.vercel.app/" target="_blank">© Ankit Raj</a>
+    </footer>
+    <script src="popup.js"></script>
+</body>
+</html>
