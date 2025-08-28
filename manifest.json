@@ -1,25 +1,27 @@
 {
   "manifest_version": 3,
-  "name": "Efinder Download Manager",
-  "version": "1.1",
-  "description": "Download files into folders with progress tracking.",
+  "name": "File Downloader Extension",
+  "version": "1.0",
+  "description": "Download all files from web pages with beautiful UI",
   "permissions": [
     "downloads",
-    "activeTab",
+    "notifications",
     "scripting",
-    "notifications"
+    "activeTab"
   ],
   "background": {
     "service_worker": "background.js"
   },
-  "host_permissions": [
-    "<all_urls>"
-  ],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": "image.png"
+    "default_title": "Download Files",
+    "default_icon": {
+      
+      "128": "image.png"
+    }
   },
   "icons": {
+    
     "128": "image.png"
   }
 }
