@@ -89,6 +89,31 @@
             background: linear-gradient(135deg, #9ca3af, #6b7280);
         }
 
+        #addSerialBtn {
+            width: 100%;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #addSerialBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        #addSerialBtn:active {
+            transform: translateY(0);
+        }
+
         .status-container {
             min-height: 40px;
             display: flex;
@@ -250,13 +275,17 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📁 File Downloader</h1>
-            <p>Download all files from the current page</p>
+            <h1>File Downloader</h1>
+            <p>Download files and add serial numbers</p>
         </div>
         
         <div class="download-section">
             <button id="downloadBtn">
                 <span id="btnText">Download All Files</span>
+            </button>
+            
+            <button id="addSerialBtn">
+                Add Serial Numbers to Page Tables
             </button>
             
             <div class="status-container">

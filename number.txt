@@ -1,0 +1,96 @@
+(function(){
+  try {
+    const SERIAL_CLASS = 'js-serial-cell';
+    const HEADER_CLASS = 'js-serial-header';
+
+    // Create global controller storage (so repeated pastes won't double-attach)
+    window.__serialNumberObservers = window.__serialNumberObservers || [];
+
+    // Helper: already processed?
+    function alreadyProcessed(tbody){
+      return window.__serialNumberObservers.some(entry => entry.tbody === tbody);
+    }
+
+    // Main routine for a single tbody
+    function processTbody(tbody, idx){
+      function addSerials(){
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        // Remove previous serial cells we added (prevents duplicates)
+        rows.forEach(row => {
+          const old = row.querySelector('td.' + SERIAL_CLASS);
+          if (old) old.remove();
+        });
+
+        // Insert serial td as first cell in each row
+        rows.forEach((row, i) => {
+          const cell = document.createElement('td');
+          cell.className = SERIAL_CLASS;
+          cell.textContent = i + 1;
+          // optional styling (comment out if you don't want inline styles)
+          cell.style.fontWeight = '600';
+          cell.style.paddingRight = '8px';
+          // put it before the first child element (safer than firstChild)
+          row.insertBefore(cell, row.children[0] || row.firstChild);
+        });
+
+        // If table has a thead, ensure a header cell "S.No" is added as first <th>
+        const table = tbody.closest('table');
+        if (table) {
+          const thead = table.querySelector('thead');
+          if (thead) {
+            let headerRow = thead.querySelector('tr');
+            if (!headerRow) {
+              headerRow = document.createElement('tr');
+              thead.appendChild(headerRow);
+            }
+            const existingTh = headerRow.querySelector('th.' + HEADER_CLASS);
+            if (existingTh) existingTh.remove();
+            const th = document.createElement('th');
+            th.className = HEADER_CLASS;
+            th.textContent = 'S.No';
+            headerRow.insertBefore(th, headerRow.children[0] || headerRow.firstChild);
+          }
+        }
+
+        console.info(`[serials] tbody#${idx} — ${rows.length} rows numbered`);
+      }
+
+      // Run once immediately
+      addSerials();
+
+      // Observe changes so numbering stays correct if rows are added/removed later
+      const mo = new MutationObserver(() => {
+        // simple debounce using requestAnimationFrame to avoid thrash
+        if (typeof window.__serialNumber_rAF === 'number') cancelAnimationFrame(window.__serialNumber_rAF);
+        window.__serialNumber_rAF = requestAnimationFrame(() => addSerials());
+      });
+      mo.observe(tbody, { childList: true, subtree: false });
+
+      // store controller so user can disconnect later
+      window.__serialNumberObservers.push({
+        tbody,
+        observer: mo,
+        refresh: addSerials,
+        disconnect: () => { mo.disconnect(); }
+      });
+    }
+
+    // Find all tbodies on page (you can change this selector if you want)
+    const tbodies = Array.from(document.querySelectorAll('tbody'));
+    if (tbodies.length === 0) {
+      console.error('No <tbody> found on this page. If your table is created later by JS/Angular, run this script after rows appear or keep page open and paste again.');
+      return;
+    }
+
+    tbodies.forEach((tb, i) => {
+      if (!alreadyProcessed(tb)) processTbody(tb, i);
+      else console.info(`tbody#${i} already processed — use window.__serialNumberObservers to control.`);
+    });
+
+    console.info('Serial-numbering active. Controls are available at window.__serialNumberObservers');
+    console.info('To stop all observers: window.__serialNumberObservers.forEach(x=>x.disconnect()); window.__serialNumberObservers = [];');
+    console.info('To refresh manually: window.__serialNumberObservers.forEach(x=>x.refresh());');
+  } catch (err) {
+    console.error('Error running serial-number script:', err);
+  }
+})();

@@ -1,5 +1,6 @@
 let isDownloading = false;
 
+// Download button functionality
 document.getElementById('downloadBtn').addEventListener('click', () => {
     if (isDownloading) return;
     
@@ -14,6 +15,50 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
     });
 });
 
+// Add serial numbers button functionality
+document.getElementById('addSerialBtn').addEventListener('click', () => {
+    const status = document.getElementById('status');
+    
+    status.textContent = 'Adding serial numbers to page tables...';
+    status.className = 'visible';
+    
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: addSerialNumbersToTables
+        }, (results) => {
+            if (chrome.runtime.lastError) {
+                status.textContent = 'Error: ' + chrome.runtime.lastError.message;
+                status.className = 'visible error';
+            } else if (results && results[0] && results[0].result) {
+                const result = results[0].result;
+                if (result.error) {
+                    status.textContent = 'Error: ' + result.error;
+                    status.className = 'visible error';
+                } else if (result.tablesFound === 0) {
+                    status.textContent = 'No tables found on this page';
+                    status.className = 'visible error';
+                } else {
+                    status.textContent = `Added serial numbers to ${result.tablesFound} table(s)!`;
+                    status.className = 'visible success';
+                    
+                    // Show modal with details
+                    showModal('success', 'Serial Numbers Added!', 
+                        `Successfully added serial numbers to <strong>${result.tablesFound} table(s)</strong> with <strong>${result.totalRows} total rows</strong>.<br><br>The tables now have "S.No" columns that will automatically update if rows are added or removed.`);
+                }
+            } else {
+                status.textContent = 'No tables found on this page';
+                status.className = 'visible error';
+            }
+            
+            setTimeout(() => {
+                status.className = '';
+            }, 3000);
+        });
+    });
+});
+
+// Function to be injected into page for collecting download links
 function collectLinksAndClaim() {
     const anchors = document.querySelectorAll('td[data-label="Photo Name"] a');
     const urls = [];
@@ -64,6 +109,118 @@ function collectLinksAndClaim() {
     
     console.log('Found claim number:', claimNo); // Debug log
     chrome.runtime.sendMessage({ urls, claimNo });
+}
+
+// Function to be injected into page for adding serial numbers
+function addSerialNumbersToTables() {
+    try {
+        const SERIAL_CLASS = 'js-serial-cell';
+        const HEADER_CLASS = 'js-serial-header';
+
+        // Create global controller storage (so repeated pastes won't double-attach)
+        window.__serialNumberObservers = window.__serialNumberObservers || [];
+
+        // Helper: already processed?
+        function alreadyProcessed(tbody) {
+            return window.__serialNumberObservers.some(entry => entry.tbody === tbody);
+        }
+
+        // Main routine for a single tbody
+        function processTbody(tbody, idx) {
+            function addSerials() {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                // Remove previous serial cells we added (prevents duplicates)
+                rows.forEach(row => {
+                    const old = row.querySelector('td.' + SERIAL_CLASS);
+                    if (old) old.remove();
+                });
+
+                // Insert serial td as first cell in each row
+                rows.forEach((row, i) => {
+                    const cell = document.createElement('td');
+                    cell.className = SERIAL_CLASS;
+                    cell.textContent = i + 1;
+                    // optional styling (comment out if you don't want inline styles)
+                    cell.style.fontWeight = '600';
+                    cell.style.paddingRight = '8px';
+                    // put it before the first child element (safer than firstChild)
+                    row.insertBefore(cell, row.children[0] || row.firstChild);
+                });
+
+                // If table has a thead, ensure a header cell "S.No" is added as first <th>
+                const table = tbody.closest('table');
+                if (table) {
+                    const thead = table.querySelector('thead');
+                    if (thead) {
+                        let headerRow = thead.querySelector('tr');
+                        if (!headerRow) {
+                            headerRow = document.createElement('tr');
+                            thead.appendChild(headerRow);
+                        }
+                        const existingTh = headerRow.querySelector('th.' + HEADER_CLASS);
+                        if (existingTh) existingTh.remove();
+                        const th = document.createElement('th');
+                        th.className = HEADER_CLASS;
+                        th.textContent = 'S.No';
+                        headerRow.insertBefore(th, headerRow.children[0] || headerRow.firstChild);
+                    }
+                }
+
+                console.info(`[serials] tbody#${idx} — ${rows.length} rows numbered`);
+                return rows.length;
+            }
+
+            // Run once immediately
+            const rowCount = addSerials();
+
+            // Observe changes so numbering stays correct if rows are added/removed later
+            const mo = new MutationObserver(() => {
+                // simple debounce using requestAnimationFrame to avoid thrash
+                if (typeof window.__serialNumber_rAF === 'number') cancelAnimationFrame(window.__serialNumber_rAF);
+                window.__serialNumber_rAF = requestAnimationFrame(() => addSerials());
+            });
+            mo.observe(tbody, { childList: true, subtree: false });
+
+            // store controller so user can disconnect later
+            window.__serialNumberObservers.push({
+                tbody,
+                observer: mo,
+                refresh: addSerials,
+                disconnect: () => { mo.disconnect(); }
+            });
+
+            return rowCount;
+        }
+
+        // Find all tbodies on page (you can change this selector if you want)
+        const tbodies = Array.from(document.querySelectorAll('tbody'));
+        if (tbodies.length === 0) {
+            console.error('No <tbody> found on this page. If your table is created later by JS/Angular, run this script after rows appear or keep page open and paste again.');
+            return { tablesFound: 0, totalRows: 0, error: 'No <tbody> found on this page' };
+        }
+
+        let totalRows = 0;
+        let tablesProcessed = 0;
+
+        tbodies.forEach((tb, i) => {
+            if (!alreadyProcessed(tb)) {
+                const rowCount = processTbody(tb, i);
+                totalRows += rowCount;
+                tablesProcessed++;
+            } else {
+                console.info(`tbody#${i} already processed — use window.__serialNumberObservers to control.`);
+            }
+        });
+
+        console.info('Serial-numbering active. Controls are available at window.__serialNumberObservers');
+        console.info('To stop all observers: window.__serialNumberObservers.forEach(x=>x.disconnect()); window.__serialNumberObservers = [];');
+        console.info('To refresh manually: window.__serialNumberObservers.forEach(x=>x.refresh());');
+
+        return { tablesFound: tablesProcessed, totalRows: totalRows };
+    } catch (err) {
+        console.error('Error running serial-number script:', err);
+        return { error: err.message };
+    }
 }
 
 function updateUI(state, data = {}) {
@@ -140,8 +297,31 @@ function showResultModal(data) {
     modal.classList.add('show');
 }
 
+// Generic modal function
+function showModal(type, title, message) {
+    const modal = document.getElementById('resultModal');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconText = document.getElementById('modalIconText');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    
+    modalIcon.className = `modal-icon ${type}`;
+    modalIconText.textContent = type === 'success' ? '✓' : '✕';
+    modalTitle.textContent = title;
+    modalMessage.innerHTML = message;
+    
+    modal.classList.add('show');
+}
+
 document.getElementById('modalClose').addEventListener('click', () => {
     document.getElementById('resultModal').classList.remove('show');
+});
+
+// Close modal when clicking outside
+document.getElementById('resultModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.remove('show');
+    }
 });
 
 // Listen for download completion from background script
