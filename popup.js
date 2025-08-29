@@ -23,12 +23,46 @@ function collectLinksAndClaim() {
         urls.push({ href, filename });
     });
 
+    // Try multiple ways to find claim number
+    let claimNo = "UnknownClaim";
+    
+    // Method 1: Look for label with "Claim No"
     const claimLabel = Array.from(document.querySelectorAll('div.form-group label'))
         .find(label => label.textContent.trim() === 'Claim No');
-    const claimNo = claimLabel
-        ? claimLabel.nextElementSibling.textContent.trim()
-        : "UnknownClaim";
+    
+    if (claimLabel && claimLabel.nextElementSibling) {
+        claimNo = claimLabel.nextElementSibling.textContent.trim();
+    } else {
+        // Method 2: Look for any element containing claim number
+        const claimElements = document.querySelectorAll('*');
+        for (let element of claimElements) {
+            const text = element.textContent;
+            if (text && text.includes('Claim') && text.includes('No')) {
+                // Extract claim number from text
+                const match = text.match(/claim\s*no\s*:?\s*([a-zA-Z0-9-_]+)/i);
+                if (match) {
+                    claimNo = match[1];
+                    break;
+                }
+            }
+        }
+        
+        // Method 3: Look for input fields that might contain claim number
+        if (claimNo === "UnknownClaim") {
+            const inputs = document.querySelectorAll('input[type="text"], input[type="hidden"]');
+            for (let input of inputs) {
+                if (input.name && input.name.toLowerCase().includes('claim') && input.value) {
+                    claimNo = input.value.trim();
+                    break;
+                }
+            }
+        }
+    }
 
+    // Clean up claim number - remove any unwanted characters
+    claimNo = claimNo.replace(/[^a-zA-Z0-9-_]/g, '') || "UnknownClaim";
+    
+    console.log('Found claim number:', claimNo); // Debug log
     chrome.runtime.sendMessage({ urls, claimNo });
 }
 
@@ -77,23 +111,29 @@ function showResultModal(data) {
     const modalTitle = document.getElementById('modalTitle');
     const modalMessage = document.getElementById('modalMessage');
     
+    console.log('Modal data:', data); // Debug log
+    
     if (data.failed && data.failed.length > 0) {
         modalIcon.className = 'modal-icon error';
         modalIconText.textContent = '⚠';
         modalTitle.textContent = 'Download Completed with Issues';
         modalMessage.innerHTML = `
-            <strong>✅ Successfully downloaded:</strong> ${data.successCount}/${data.total} files<br>
-            <strong>❌ Failed:</strong> ${data.failed.length} files<br><br>
-            Files saved in folder: <strong>"${data.claimNo}"</strong>
-            ${data.failed.length <= 3 ? `<br><br><small>Failed files: ${data.failed.join(', ')}</small>` : ''}
+            <strong>📊 Total Files Found:</strong> ${data.total}<br>
+            <strong>✅ Successfully Downloaded:</strong> ${data.successCount}<br>
+            <strong>❌ Failed:</strong> ${data.failed.length}<br><br>
+            <strong>📁 Folder Name:</strong> "${data.claimNo}"<br>
+            <strong>📍 Location:</strong> Downloads/${data.claimNo}/
+            ${data.failed.length <= 3 ? `<br><br><small>❌ Failed files: ${data.failed.join(', ')}</small>` : ''}
         `;
     } else {
         modalIcon.className = 'modal-icon success';
         modalIconText.textContent = '✓';
-        modalTitle.textContent = 'Download Complete!';
+        modalTitle.textContent = '🎉 Download Complete!';
         modalMessage.innerHTML = `
-            <strong>✅ Successfully downloaded:</strong> ${data.total} files<br><br>
-            Files saved in folder: <strong>"${data.claimNo}"</strong>
+            <strong>📊 Total Files:</strong> ${data.total}<br>
+            <strong>✅ All Successfully Downloaded!</strong><br><br>
+            <strong>📁 Folder Name:</strong> "${data.claimNo}"<br>
+            <strong>📍 Location:</strong> Downloads/${data.claimNo}/
         `;
     }
     
